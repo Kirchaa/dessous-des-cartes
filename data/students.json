@@ -1,0 +1,20 @@
+[
+  {"id": "s01", "name": "Élève 1", "pack_number": 1},
+  {"id": "s02", "name": "Élève 2", "pack_number": 2},
+  {"id": "s03", "name": "Élève 3", "pack_number": 3},
+  {"id": "s04", "name": "Élève 4", "pack_number": 4},
+  {"id": "s05", "name": "Élève 5", "pack_number": 5},
+  {"id": "s06", "name": "Élève 6", "pack_number": 6},
+  {"id": "s07", "name": "Élève 7", "pack_number": 7},
+  {"id": "s08", "name": "Élève 8", "pack_number": 8},
+  {"id": "s09", "name": "Élève 9", "pack_number": 9},
+  {"id": "s10", "name": "Élève 10", "pack_number": 10},
+  {"id": "s11", "name": "Élève 11", "pack_number": 11},
+  {"id": "s12", "name": "Élève 12", "pack_number": 12},
+  {"id": "s13", "name": "Élève 13", "pack_number": 13},
+  {"id": "s14", "name": "Élève 14", "pack_number": 14},
+  {"id": "s15", "name": "Élève 15", "pack_number": 15},
+  {"id": "s16", "name": "Élève 16", "pack_number": 16},
+  {"id": "s17", "name": "Élève 17", "pack_number": 17},
+  {"id": "s18", "name": "Élève 18", "pack_number": 18}
+]
