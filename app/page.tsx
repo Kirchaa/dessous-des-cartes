@@ -1,12 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Video, BookOpen, Users, Library } from 'lucide-react';
-import ProgressBar from './_components/ProgressBar';
-import { listStatuses } from './_lib/storage';
 import videosRaw from '@/data/videos.json';
+import ProgressBar from './_components/ProgressBar';
+// 🔗 nouvelles imports Supabase
+import { listMyNoteStatuses, NoteStatus } from './_lib/notes';
 
 type VideoItem = {
   pack_number: number | string;
@@ -22,9 +29,18 @@ type VideoItem = {
 // 🔧 Normalisation (au cas où ton JSON vient d’un CSV)
 const videosData: VideoItem[] = (videosRaw as VideoItem[]).map((v) => ({
   ...v,
-  pack_number: typeof v.pack_number === 'string' ? parseInt(v.pack_number, 10) : v.pack_number,
-  rank_in_pack: typeof v.rank_in_pack === 'string' ? parseInt(v.rank_in_pack, 10) : v.rank_in_pack,
-  duration_s: typeof v.duration_s === 'string' ? parseInt(v.duration_s, 10) : v.duration_s,
+  pack_number:
+    typeof v.pack_number === 'string'
+      ? parseInt(v.pack_number, 10)
+      : v.pack_number,
+  rank_in_pack:
+    typeof v.rank_in_pack === 'string'
+      ? parseInt(v.rank_in_pack, 10)
+      : v.rank_in_pack,
+  duration_s:
+    typeof v.duration_s === 'string'
+      ? parseInt(v.duration_s, 10)
+      : v.duration_s,
 }));
 
 export default function Home() {
@@ -35,47 +51,49 @@ export default function Home() {
     todo: 0,
   });
 
-  // 🧮 ids présents dans le dataset courant
-  const currentIds = useMemo(() => new Set(videosData.map((v) => v.video_id)), []);
-
-  // 📊 calcule les stats globales en se basant uniquement sur videosData
-  const computeStats = () => {
-    const statuses = listStatuses(); // Record<videoId, 'todo'|'in_progress'|'done'>
-    const total = videosData.length;
-    let done = 0;
-    let inProgress = 0;
-
-    for (const id of currentIds) {
-      const s = statuses[id];
-      if (s === 'done') done++;
-      else if (s === 'in_progress') inProgress++;
-    }
-    const todo = total - done - inProgress;
-    return { total, done, inProgress, todo };
-  };
-
+  // 📊 Charge les stats depuis Supabase (notes de l'utilisateur connecté)
   useEffect(() => {
-    setStats(computeStats()); // premier calcul à l’affichage
+    let cancelled = false;
 
-    // 🔁 se met à jour si le localStorage change (ex: autre onglet)
-    const onStorage = (e: StorageEvent) => {
-      if (!e.key) return;
-      if (e.key.startsWith('status:') || e.key === 'notes' || e.key.startsWith('notes:')) {
-        setStats(computeStats());
+    async function loadStatsFromSupabase() {
+      try {
+        const videoIds = videosData.map((v) => v.video_id);
+        const statuses = await listMyNoteStatuses(videoIds);
+        // statuses: Record<string, NoteStatus>
+
+        const total = videosData.length;
+        let done = 0;
+        let inProgress = 0;
+
+        for (const v of videosData) {
+          const s = statuses[v.video_id] as NoteStatus | undefined;
+          if (s === 'done') done++;
+          else if (s === 'in_progress') inProgress++;
+        }
+
+        const todo = total - done - inProgress;
+
+        if (!cancelled) {
+          setStats({ total, done, inProgress, todo });
+        }
+      } catch (e) {
+        console.warn('Erreur chargement stats depuis Supabase:', e);
+        if (!cancelled) {
+          setStats({
+            total: videosData.length,
+            done: 0,
+            inProgress: 0,
+            todo: videosData.length,
+          });
+        }
       }
-    };
-    window.addEventListener('storage', onStorage);
+    }
 
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') setStats(computeStats());
-    };
-    document.addEventListener('visibilitychange', onVisibility);
+    loadStatsFromSupabase();
 
     return () => {
-      window.removeEventListener('storage', onStorage);
-      document.removeEventListener('visibilitychange', onVisibility);
+      cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cards = [
@@ -113,15 +131,35 @@ export default function Home() {
             Le Dessous des Cartes
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Plateforme de fichage des vidéos YouTube pour l&apos;analyse géopolitique
+            Plateforme de fichage des vidéos YouTube pour l&apos;analyse
+            géopolitique
           </p>
           <div className="flex flex-row gap-4 justify-center max-w-xl mx-auto my-4">
-            <iframe width="110" height="200" src="https://www.myinstants.com/instant/faaah-63455/embed/" scrolling="no"></iframe>
-            <iframe width="110" height="200" src="https://www.myinstants.com/instant/fart/embed/" scrolling="no"></iframe>
-            <iframe width="110" height="200" src="https://www.myinstants.com/instant/baby-laughing-meme-56428/embed/" scrolling="no"></iframe>
-            <iframe width="110" height="200" src="https://www.myinstants.com/instant/he-he-he-ha-clash-royale-deep-fried-59551/embed/" scrolling="no"></iframe>
+            <iframe
+              width="110"
+              height="200"
+              src="https://www.myinstants.com/instant/faaah-63455/embed/"
+              scrolling="no"
+            ></iframe>
+            <iframe
+              width="110"
+              height="200"
+              src="https://www.myinstants.com/instant/fart/embed/"
+              scrolling="no"
+            ></iframe>
+            <iframe
+              width="110"
+              height="200"
+              src="https://www.myinstants.com/instant/baby-laughing-meme-56428/embed/"
+              scrolling="no"
+            ></iframe>
+            <iframe
+              width="110"
+              height="200"
+              src="https://www.myinstants.com/instant/he-he-he-ha-clash-royale-deep-fried-59551/embed/"
+              scrolling="no"
+            ></iframe>
           </div>
-          
         </div>
 
         <div className="mb-12">
@@ -137,20 +175,30 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-3 mb-2">
-                <ProgressBar current={stats.done} total={stats.total} className="flex-1" />
+                <ProgressBar
+                  current={stats.done}
+                  total={stats.total}
+                  className="flex-1"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                 <div className="bg-gray-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-gray-700">{stats.todo}</div>
+                  <div className="text-2xl font-bold text-gray-700">
+                    {stats.todo}
+                  </div>
                   <div className="text-sm text-gray-600">À faire</div>
                 </div>
                 <div className="bg-yellow-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-yellow-700">{stats.inProgress}</div>
+                  <div className="text-2xl font-bold text-yellow-700">
+                    {stats.inProgress}
+                  </div>
                   <div className="text-sm text-yellow-600">En cours</div>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-green-700">{stats.done}</div>
+                  <div className="text-2xl font-bold text-green-700">
+                    {stats.done}
+                  </div>
                   <div className="text-sm text-green-600">Terminées</div>
                 </div>
               </div>

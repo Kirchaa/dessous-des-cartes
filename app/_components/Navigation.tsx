@@ -3,8 +3,18 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Home, Video, Users, Library, LogIn, LogOut } from 'lucide-react';
+import {
+  Home,
+  Video,
+  Users,
+  Library,
+  LogIn,
+  LogOut,
+  Shield,
+} from 'lucide-react';
 import { createClient } from '@/app/_lib/supabase/client';
+
+type Role = 'visitor' | 'student' | 'admin' | null;
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -13,41 +23,64 @@ export default function Navigation() {
 
   const [loggedIn, setLoggedIn] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
-
-  const links = [
-    { href: '/', label: 'Accueil', icon: Home },
-    { href: '/videos', label: 'Vidéos', icon: Video },
-    { href: '/packs', label: 'Packs', icon: Users },
-    { href: '/library', label: 'Bibliothèque', icon: Library },
-  ];
+  const [role, setRole] = useState<Role>(null);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
 
-  // 🔐 Vérifie la session côté client
+  // 🔐 Vérifie la session + récupère le rôle dans profiles
   useEffect(() => {
     let mounted = true;
 
+    async function refreshFromSession(session: any) {
+      if (!mounted) return;
+
+      if (!session) {
+        setLoggedIn(false);
+        setRole(null);
+        return;
+      }
+
+      setLoggedIn(true);
+
+      // Récupérer le rôle dans la table profiles
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('Erreur chargement profil (nav) :', error.message);
+        setRole(null);
+      } else {
+        setRole((profile as any)?.role ?? null);
+      }
+    }
+
     (async () => {
       const { data, error } = await supabase.auth.getSession();
-      if (!mounted) return;
 
       if (error) {
         console.warn('Erreur getSession (nav):', error.message);
-        setLoggedIn(false);
-      } else {
-        setLoggedIn(!!data.session);
+        if (mounted) {
+          setLoggedIn(false);
+          setRole(null);
+          setCheckingAuth(false);
+        }
+        return;
       }
-      setCheckingAuth(false);
+
+      await refreshFromSession(data.session);
+      if (mounted) setCheckingAuth(false);
     })();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      setLoggedIn(!!session);
+      refreshFromSession(session);
     });
 
     return () => {
@@ -66,6 +99,23 @@ export default function Navigation() {
       router.refresh(); // force refresh pour les pages server
     }
   };
+
+  // Liens de base
+  const baseLinks = [
+    { href: '/', label: 'Accueil', icon: Home },
+    { href: '/videos', label: 'Vidéos', icon: Video },
+    { href: '/packs', label: 'Packs', icon: Users },
+    { href: '/library', label: 'Bibliothèque', icon: Library },
+  ];
+
+  // Ajout du lien Admin uniquement si role === 'admin'
+  const links =
+    role === 'admin'
+      ? [
+          ...baseLinks,
+          { href: '/admin', label: 'Admin', icon: Shield },
+        ]
+      : baseLinks;
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
