@@ -1,11 +1,14 @@
-import { updateSession } from "@/app/_lib/supabase/middleware";
-import { type NextRequest } from "next/server";
+// middleware.ts (root)
 
-export async function middleware(request: NextRequest) {
-  return await updateSession(request);
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+
+// Middleware neutre : on laisse tout passer, plus aucun appel à Supabase ici
+export function middleware(_req: NextRequest) {
+  return NextResponse.next();
 }
 
-// ⚙️ protège seulement /videos et /packs
+// Aucun chemin matché = middleware désactivée pour toutes les routes
 export const config = {
-  matcher: ["/videos/:path*", "/packs/:path*"],
+  matcher: [],
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Video } from '../_lib/types';
 import { fmtDuration, fmtDateLong } from '../_lib/format';
@@ -20,14 +20,17 @@ interface Props {
   videoId: string;
 }
 
+type UserRole = 'visitor' | 'student' | 'admin';
+
 export default function VideoDetailClient({ videoId }: Props) {
   const router = useRouter();
-  const supabase = createClient();
-  // Auth / rôle
-  const [canEdit, setCanEdit] = useState(false);
+  const supabase = useMemo(() => createClient(), []);
+  
+  // Infos user / profil
   const [authChecked, setAuthChecked] = useState(false);
-  const [currentRole, setCurrentRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [role, setRole] = useState<UserRole>('visitor');
+  const [userPackNumber, setUserPackNumber] = useState<number | null>(null);
 
   // Vidéo & note
   const [video, setVideo] = useState<Video | null>(null);
@@ -36,48 +39,52 @@ export default function VideoDetailClient({ videoId }: Props) {
   const [showToast, setShowToast] = useState(false);
   const [loadingNote, setLoadingNote] = useState(true);
 
-  // 🔐 1) Rôle : visitor / student / admin
+  // 🔐 1) Charger le profil (rôle + pack_number)
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       const { data: sess, error: sessError } = await supabase.auth.getSession();
       if (sessError) console.warn('getSession error:', sessError.message);
-  
+
       const uid = sess.session?.user?.id ?? null;
       if (mounted) setCurrentUserId(uid);
-  
+
       if (!uid) {
         if (mounted) {
-          setCanEdit(false);
-          setCurrentRole(null);
+          setRole('visitor');
+          setUserPackNumber(null);
           setAuthChecked(true);
         }
         return;
       }
-  
+
       const { data: prof, error } = await supabase
         .from('profiles')
         .select('id, role, pack_number')
         .eq('id', uid)
         .maybeSingle();
-  
+
       if (error) {
         console.warn('profiles select error:', error.message);
       }
-  
+
       if (mounted) {
-        const r = (prof as any)?.role ?? null;
-        setCurrentRole(r);
-        setCanEdit(r === 'student' || r === 'admin'); // <== logique finale
+        const r = (prof as any)?.role as UserRole | undefined;
+        const p = (prof as any)?.pack_number as number | null | undefined;
+
+        setRole(r ?? 'visitor');
+        setUserPackNumber(p ?? null);
         setAuthChecked(true);
+
         console.log('DEBUG profile:', { uid, profile: prof });
       }
     })();
-  
+
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [supabase]);
 
   // 🎬 2) Charger la vidéo
   useEffect(() => {
@@ -89,10 +96,12 @@ export default function VideoDetailClient({ videoId }: Props) {
   // 📝 3) Charger la note depuis Supabase
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       setLoadingNote(true);
       const note = await getMyNote(videoId);
       if (!mounted) return;
+
       if (note) {
         setNoteContent(note.content_md || '');
         setVideoStatus(note.status);
@@ -102,15 +111,29 @@ export default function VideoDetailClient({ videoId }: Props) {
       }
       setLoadingNote(false);
     })();
+
     return () => {
       mounted = false;
     };
   }, [videoId]);
 
+  // 🎯 Autorisation d’édition :
+  // - admin : toutes les vidéos
+  // - student : uniquement les vidéos du pack qui lui est assigné
+  // - visitor : jamais
+  const canEdit: boolean = useMemo(() => {
+    if (!authChecked || !video) return false;
+    if (role === 'admin') return true;
+    if (role === 'student' && userPackNumber != null) {
+      return Number(video.pack_number) === Number(userPackNumber);
+    }
+    return false;
+  }, [authChecked, role, userPackNumber, video]);
+
   // 💾 4) Sauvegarder le contenu (appelé par NoteEditor)
   const handleSaveNote = async (content: string) => {
     setNoteContent(content);
-    if (!canEdit) return; // sécurité front (RLS protège quand même derrière)
+    if (!canEdit) return; // sécurité front, RLS reste la vraie barrière
     await upsertMyNote(videoId, content, status, 'class');
   };
 
@@ -220,16 +243,7 @@ export default function VideoDetailClient({ videoId }: Props) {
               </CardContent>
             </Card>
 
-            {/* 🔽 ICI : Fiche de travail avec ton bloc canEdit 
-            <Card className="mb-4">
-              <CardHeader>
-                <CardTitle className="text-sm">Debug rôle utilisateur</CardTitle>
-                <CardDescription className="text-xs">
-                  user_id = {currentUserId || 'aucun'} — rôle = {currentRole || 'inconnu'}
-                </CardDescription>
-              </CardHeader>
-            </Card>
-            */}
+            {/* Fiche de travail */}
             <Card>
               <CardHeader>
                 <CardTitle>Fiche de travail</CardTitle>
@@ -247,8 +261,18 @@ export default function VideoDetailClient({ videoId }: Props) {
                       onSave={handleSaveNote}
                     />
                   ) : (
-                    <div className="text-sm text-gray-500">
-                      Rôle : visiteur — lecture seule. Demande à l’admin de t’attribuer un pack pour éditer.
+                    <div className="text-sm text-gray-500 space-y-1">
+                      <p>Rôle : {role === 'visitor' ? 'visiteur' : 'étudiant'} — lecture seule.</p>
+                      {role === 'student' && userPackNumber != null && (
+                        <p>
+                          Tu es assigné au <strong>Pack {userPackNumber}</strong>.  
+                          Cette vidéo appartient au <strong>Pack {String(video.pack_number)}</strong>, 
+                          tu ne peux pas la modifier.
+                        </p>
+                      )}
+                      {role === 'visitor' && (
+                        <p>Demande à l’admin de t’attribuer un pack pour pouvoir éditer des fiches.</p>
+                      )}
                     </div>
                   )
                 )}
@@ -298,7 +322,7 @@ export default function VideoDetailClient({ videoId }: Props) {
 
                 {!canEdit && (
                   <p className="text-xs text-gray-400">
-                    Statut en lecture seule pour les visiteurs.
+                    Statut en lecture seule pour cette vidéo (pas dans ton pack ou visiteur).
                   </p>
                 )}
               </CardContent>

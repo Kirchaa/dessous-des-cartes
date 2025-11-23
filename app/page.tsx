@@ -20,7 +20,7 @@ type VideoItem = {
 };
 
 // 🔧 Normalisation (au cas où ton JSON vient d’un CSV)
-const videosData: VideoItem[] = (videosRaw as VideoItem[]).map(v => ({
+const videosData: VideoItem[] = (videosRaw as VideoItem[]).map((v) => ({
   ...v,
   pack_number: typeof v.pack_number === 'string' ? parseInt(v.pack_number, 10) : v.pack_number,
   rank_in_pack: typeof v.rank_in_pack === 'string' ? parseInt(v.rank_in_pack, 10) : v.rank_in_pack,
@@ -35,8 +35,8 @@ export default function Home() {
     todo: 0,
   });
 
-  // 🧮 ids présents dans le dataset courant (évite de compter des clés orphelines du localStorage)
-  const currentIds = useMemo(() => new Set(videosData.map(v => v.video_id)), []);
+  // 🧮 ids présents dans le dataset courant
+  const currentIds = useMemo(() => new Set(videosData.map((v) => v.video_id)), []);
 
   // 📊 calcule les stats globales en se basant uniquement sur videosData
   const computeStats = () => {
@@ -57,17 +57,15 @@ export default function Home() {
   useEffect(() => {
     setStats(computeStats()); // premier calcul à l’affichage
 
-    // 🔁 se met à jour si le localStorage change (ex: autre onglet modifie une fiche)
+    // 🔁 se met à jour si le localStorage change (ex: autre onglet)
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
-      // on ne recalcule que si une clé liée aux statuts est modifiée
       if (e.key.startsWith('status:') || e.key === 'notes' || e.key.startsWith('notes:')) {
         setStats(computeStats());
       }
     };
     window.addEventListener('storage', onStorage);
 
-    // ✅ possibilité de forcer un refresh manuel
     const onVisibility = () => {
       if (document.visibilityState === 'visible') setStats(computeStats());
     };
@@ -79,9 +77,6 @@ export default function Home() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const percent =
-    stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
 
   const cards = [
     {
@@ -120,6 +115,13 @@ export default function Home() {
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Plateforme de fichage des vidéos YouTube pour l&apos;analyse géopolitique
           </p>
+          <div className="flex flex-row gap-4 justify-center max-w-xl mx-auto my-4">
+            <iframe width="110" height="200" src="https://www.myinstants.com/instant/faaah-63455/embed/" scrolling="no"></iframe>
+            <iframe width="110" height="200" src="https://www.myinstants.com/instant/fart/embed/" scrolling="no"></iframe>
+            <iframe width="110" height="200" src="https://www.myinstants.com/instant/baby-laughing-meme-56428/embed/" scrolling="no"></iframe>
+            <iframe width="110" height="200" src="https://www.myinstants.com/instant/he-he-he-ha-clash-royale-deep-fried-59551/embed/" scrolling="no"></iframe>
+          </div>
+          
         </div>
 
         <div className="mb-12">
@@ -152,10 +154,6 @@ export default function Home() {
                   <div className="text-sm text-green-600">Terminées</div>
                 </div>
               </div>
-
-              <div className="mt-3 text-xs text-gray-500">
-                Total vidéos: {stats.total} — Comptage basé sur le dataset courant (ignore les anciennes clés du navigateur).
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -165,7 +163,9 @@ export default function Home() {
             <Link key={card.href} href={card.href}>
               <Card className="h-full hover:shadow-lg transition-shadow duration-200 cursor-pointer">
                 <CardHeader>
-                  <div className={`w-12 h-12 rounded-lg ${card.bgColor} flex items-center justify-center mb-4`}>
+                  <div
+                    className={`w-12 h-12 rounded-lg ${card.bgColor} flex items-center justify-center mb-4`}
+                  >
                     <card.icon className={`h-6 w-6 ${card.color}`} />
                   </div>
                   <CardTitle>{card.title}</CardTitle>
