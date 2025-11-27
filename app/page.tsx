@@ -134,32 +134,6 @@ export default function Home() {
             Plateforme de fichage des vidéos YouTube pour l&apos;analyse
             géopolitique
           </p>
-          <div className="flex flex-row gap-4 justify-center max-w-xl mx-auto my-4">
-            <iframe
-              width="110"
-              height="200"
-              src="https://www.myinstants.com/instant/faaah-63455/embed/"
-              scrolling="no"
-            ></iframe>
-            <iframe
-              width="110"
-              height="200"
-              src="https://www.myinstants.com/instant/fart/embed/"
-              scrolling="no"
-            ></iframe>
-            <iframe
-              width="110"
-              height="200"
-              src="https://www.myinstants.com/instant/baby-laughing-meme-56428/embed/"
-              scrolling="no"
-            ></iframe>
-            <iframe
-              width="110"
-              height="200"
-              src="https://www.myinstants.com/instant/he-he-he-ha-clash-royale-deep-fried-59551/embed/"
-              scrolling="no"
-            ></iframe>
-          </div>
         </div>
 
         <div className="mb-12">
