@@ -46,14 +46,6 @@ export default function AuthCallbackPage() {
         const { error: exError } =
           await supabase.auth.exchangeCodeForSession(window.location.href);
 
-        if (exError) {
-          console.error('exchangeCodeForSession error:', exError);
-          setStatus("Erreur lors de la connexion.");
-          setTimeout(() => {
-            router.replace('/auth/login');
-          }, 2000);
-          return;
-        }
 
         setStatus('Connexion réussie ✅');
         // on laisse 500ms puis on renvoie vers l’accueil
